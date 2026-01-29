@@ -13,24 +13,42 @@
       <div class="login-container">
         <h1>VibiInvoices</h1>
         <p>Gere invoices a partir das suas issues completadas no GitHub</p>
-        <div class="login-form">
-          <div class="form-group">
-            <label for="pat-input">Personal Access Token</label>
-            <input type="password" id="pat-input" placeholder="ghp_xxxxxxxxxxxx">
-            <p class="input-hint">
-              <a href="https://github.com/settings/tokens/new?description=VibiInvoices&scopes=repo,read:org,read:project" target="_blank">
+        <div class="login-steps">
+          <div class="step">
+            <span class="step-number">1</span>
+            <div class="step-content">
+              <a href="https://github.com/settings/tokens/new?description=VibiInvoices&scopes=repo,read:org,read:project" target="_blank" class="btn btn-secondary">
                 Criar token no GitHub
               </a>
-              (selecione: repo, read:org, read:project)
-            </p>
+              <p class="step-hint">Abre o GitHub com as permissões já selecionadas</p>
+            </div>
           </div>
-          <button id="login-btn" class="btn btn-primary btn-large">
-            <svg viewBox="0 0 16 16" width="20" height="20" fill="currentColor">
-              <path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/>
-            </svg>
-            Entrar
-          </button>
+          <div class="step">
+            <span class="step-number">2</span>
+            <div class="step-content">
+              <p class="step-hint">Clique em <strong>"Generate token"</strong> (botão verde no fim da página)</p>
+            </div>
+          </div>
+          <div class="step">
+            <span class="step-number">3</span>
+            <div class="step-content">
+              <p class="step-hint">Copie o token gerado (começa com <code>ghp_</code>)</p>
+            </div>
+          </div>
+          <div class="step">
+            <span class="step-number">4</span>
+            <div class="step-content">
+              <input type="password" id="pat-input" placeholder="Cole o token aqui (ghp_...)">
+            </div>
+          </div>
         </div>
+        <button id="login-btn" class="btn btn-primary btn-large">
+          <svg viewBox="0 0 16 16" width="20" height="20" fill="currentColor">
+            <path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/>
+          </svg>
+          Entrar
+        </button>
+        <p class="login-note">O token fica salvo no seu navegador. Você só precisa fazer isso uma vez.</p>
       </div>
     </div>
 

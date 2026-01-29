@@ -16,7 +16,7 @@ const GitHub = {
     return false;
   },
 
-  // Set token (from PAT input)
+  // Set token
   setToken(token) {
     this.token = token;
     localStorage.setItem('github_token', token);

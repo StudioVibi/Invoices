@@ -175,7 +175,12 @@ const App = {
     const token = this.elements.patInput.value.trim();
 
     if (!token) {
-      this.toast('Digite seu Personal Access Token', 'error');
+      this.toast('Cole o token no campo acima', 'error');
+      return;
+    }
+
+    if (!token.startsWith('ghp_') && !token.startsWith('github_pat_')) {
+      this.toast('Token inválido. Deve começar com ghp_ ou github_pat_', 'error');
       return;
     }
 
