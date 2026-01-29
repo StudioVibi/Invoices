@@ -1,6 +1,5 @@
-// GitHub API and Device Flow OAuth
+// GitHub API with Personal Access Token
 const GitHub = {
-  CLIENT_ID: 'Ov23lig97uU6Gb7FFOpI',
   ORGS: ['StudioVibi', 'HigherOrderCO'],
   PROJECT_NAME: 'Work',
 
@@ -17,70 +16,26 @@ const GitHub = {
     return false;
   },
 
-  // Device Flow OAuth
-  async startDeviceFlow() {
-    const response = await fetch('https://github.com/login/device/code', {
-      method: 'POST',
+  // Set token (from PAT input)
+  setToken(token) {
+    this.token = token;
+    localStorage.setItem('github_token', token);
+  },
+
+  // Validate token by trying to get user
+  async validateToken(token) {
+    const response = await fetch('https://api.github.com/user', {
       headers: {
-        'Accept': 'application/json',
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({
-        client_id: this.CLIENT_ID,
-        scope: 'repo read:org read:project'
-      })
+        'Authorization': `Bearer ${token}`,
+        'Accept': 'application/vnd.github.v3+json'
+      }
     });
 
     if (!response.ok) {
-      throw new Error('Failed to start device flow');
+      throw new Error('Token inválido');
     }
 
     return await response.json();
-  },
-
-  // Poll for token
-  async pollForToken(deviceCode, interval) {
-    while (true) {
-      await new Promise(resolve => setTimeout(resolve, interval * 1000));
-
-      const response = await fetch('https://github.com/login/oauth/access_token', {
-        method: 'POST',
-        headers: {
-          'Accept': 'application/json',
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          client_id: this.CLIENT_ID,
-          device_code: deviceCode,
-          grant_type: 'urn:ietf:params:oauth:grant-type:device_code'
-        })
-      });
-
-      const data = await response.json();
-
-      if (data.access_token) {
-        this.token = data.access_token;
-        localStorage.setItem('github_token', this.token);
-        return this.token;
-      }
-
-      if (data.error === 'authorization_pending') {
-        continue;
-      }
-
-      if (data.error === 'slow_down') {
-        interval += 5;
-        continue;
-      }
-
-      if (data.error === 'expired_token') {
-        throw new Error('Code expired. Please try again.');
-      }
-
-      if (data.error === 'access_denied') {
-        throw new Error('Access denied by user.');
-      }
-    }
   },
 
   // Logout
