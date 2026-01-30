@@ -1,4 +1,7 @@
 // Main App Logic
+const APP_INSTALL_URL = 'https://github.com/apps/invoice-writer/installations/new';
+const APP_INSTALL_STORAGE_KEY = 'github_app_installed';
+
 const App = {
   issues: [],
   selectedIssues: new Set(),
@@ -65,6 +68,10 @@ const App = {
       historyList: document.getElementById('history-list'),
       historyLoading: document.getElementById('history-loading'),
       noHistory: document.getElementById('no-history'),
+      installAppBtn: document.getElementById('install-app-btn'),
+      installAppModal: document.getElementById('install-app-modal'),
+      installAppLink: document.getElementById('install-app-link'),
+      appInstalledBtn: document.getElementById('app-installed-btn'),
       previewModal: document.getElementById('preview-modal'),
       yamlPreview: document.getElementById('yaml-preview'),
       clientCompany: document.getElementById('client-company'),
@@ -99,6 +106,19 @@ const App = {
     // Settings
     this.elements.settingsBtn.addEventListener('click', () => this.showSettings());
     this.elements.saveSettings.addEventListener('click', () => this.saveSettings());
+
+    // Install App
+    if (this.elements.installAppBtn) {
+      this.elements.installAppBtn.addEventListener('click', () => this.showInstallAppModal());
+    }
+    if (this.elements.installAppLink) {
+      this.elements.installAppLink.addEventListener('click', () => {
+        this.hideModal(this.elements.installAppModal);
+      });
+    }
+    if (this.elements.appInstalledBtn) {
+      this.elements.appInstalledBtn.addEventListener('click', () => this.confirmAppInstalled());
+    }
 
     // History
     this.elements.historyBtn.addEventListener('click', () => this.showHistory());
@@ -273,7 +293,7 @@ const App = {
           <div class="issue-meta">
             <span class="issue-org">${issue.org}</span>
             <span class="issue-repo">${issue.repo}</span>
-            <span class="issue-date">${new Date(issue.closedAt).toLocaleDateString()}</span>
+            <span class="issue-date">${this.formatIssueDate(issue)}</span>
           </div>
         </div>
         <div class="issue-hours ${issue.hours ? '' : 'no-hours'}">
@@ -329,6 +349,16 @@ const App = {
   formatCurrency(amount) {
     const symbol = this.settings.currency === 'USD' ? '$' : 'R$';
     return `${symbol}${amount.toFixed(2)}`;
+  },
+
+  // Format issue date with fallbacks
+  formatIssueDate(issue) {
+    const dateValue = issue.closedAt || issue.updatedAt || issue.createdAt;
+    if (!dateValue) return 'Sem data';
+
+    const date = new Date(dateValue);
+    if (Number.isNaN(date.getTime())) return 'Sem data';
+    return date.toLocaleDateString();
   },
 
   // Escape HTML
@@ -439,7 +469,7 @@ const App = {
       this.saveSettingsToStorage();
 
       // Upload to GitHub
-      const url = await GitHub.uploadInvoice(filename, yaml);
+      const { url } = await GitHub.uploadInvoice(filename, yaml);
 
       this.hideModal(this.elements.previewModal);
       this.toast('Invoice criado com sucesso!', 'success');
@@ -453,6 +483,7 @@ const App = {
 
       // Open the invoice in a new tab
       window.open(url, '_blank');
+      this.maybePromptInstallApp();
 
     } catch (e) {
       console.error('Error submitting invoice:', e);
@@ -512,6 +543,34 @@ const App = {
   // Hide modal
   hideModal(modal) {
     modal.classList.add('hidden');
+  },
+
+  // App install helpers
+  isAppInstallConfirmed() {
+    return localStorage.getItem(APP_INSTALL_STORAGE_KEY) === 'true';
+  },
+
+  confirmAppInstalled() {
+    localStorage.setItem(APP_INSTALL_STORAGE_KEY, 'true');
+    this.hideModal(this.elements.installAppModal);
+    this.toast('App marcado como instalado.', 'success');
+  },
+
+  showInstallAppModal() {
+    if (!APP_INSTALL_URL || APP_INSTALL_URL.includes('REPLACE-ME')) {
+      this.toast('Configure o link do GitHub App primeiro.', 'error');
+      return;
+    }
+    if (this.elements.installAppLink) {
+      this.elements.installAppLink.href = APP_INSTALL_URL;
+    }
+    this.elements.installAppModal.classList.remove('hidden');
+  },
+
+  maybePromptInstallApp() {
+    if (!this.isAppInstallConfirmed()) {
+      this.showInstallAppModal();
+    }
   }
 };
 

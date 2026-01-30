@@ -588,6 +588,16 @@ body {
   border-top: 1px solid var(--border);
 }
 
+.install-app-text {
+  margin-bottom: 8px;
+}
+
+.install-app-hint {
+  font-size: 13px;
+  color: var(--text-muted);
+  margin: 0;
+}
+
 /* Form */
 .form-group {
   margin-bottom: 16px;

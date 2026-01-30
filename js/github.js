@@ -126,6 +126,8 @@ const GitHub = {
                   repo: repo.name,
                   org: orgName,
                   closedAt: issue.closed_at,
+                  updatedAt: issue.updated_at,
+                  createdAt: issue.created_at,
                   hours: null // Will be filled from Project
                 });
               }
@@ -142,8 +144,12 @@ const GitHub = {
     // Now get hours from Projects
     await this.enrichWithProjectHours(allIssues, orgs);
 
-    // Sort by closed date, newest first
-    allIssues.sort((a, b) => new Date(b.closedAt) - new Date(a.closedAt));
+    // Sort by date, newest first (fallback to updated/created when closedAt is missing)
+    allIssues.sort((a, b) => {
+      const dateA = new Date(a.closedAt || a.updatedAt || a.createdAt || 0);
+      const dateB = new Date(b.closedAt || b.updatedAt || b.createdAt || 0);
+      return dateB - dateA;
+    });
 
     return allIssues;
   },
@@ -262,21 +268,18 @@ const GitHub = {
     }
   },
 
-  // Check if user's Invoices repo exists
-  async checkInvoicesRepo(username) {
+  // Get user's Invoices repo (returns repo data or null)
+  async getInvoicesRepo(username) {
     try {
-      await this.api(`/repos/${username}/Invoices`);
-      return true;
+      return await this.api(`/repos/${username}/Invoices`);
     } catch (e) {
-      return false;
+      return null;
     }
   },
 
   // Create Invoices repo for user
   async createInvoicesRepo() {
-    const user = await this.getUser();
-
-    await this.api('/user/repos', {
+    const repo = await this.api('/user/repos', {
       method: 'POST',
       body: JSON.stringify({
         name: 'Invoices',
@@ -286,18 +289,23 @@ const GitHub = {
       })
     });
 
-    return `${user.login}/Invoices`;
+    return repo;
   },
 
   // Upload invoice to user's repo
   async uploadInvoice(filename, content) {
     const user = await this.getUser();
-    const repoExists = await this.checkInvoicesRepo(user.login);
+    let repo = await this.getInvoicesRepo(user.login);
+    let repoCreated = false;
 
-    if (!repoExists) {
-      await this.createInvoicesRepo();
+    if (!repo) {
+      repo = await this.createInvoicesRepo();
+      repoCreated = true;
       // Wait a bit for the repo to be ready
       await new Promise(resolve => setTimeout(resolve, 2000));
+      if (!repo?.default_branch) {
+        repo = await this.getInvoicesRepo(user.login);
+      }
     }
 
     // Create file via GitHub API
@@ -311,7 +319,11 @@ const GitHub = {
       })
     });
 
-    return `https://github.com/${user.login}/Invoices/blob/main/${filename}`;
+    const defaultBranch = repo?.default_branch || 'main';
+    return {
+      url: `https://github.com/${user.login}/Invoices/blob/${defaultBranch}/${filename}`,
+      repoCreated
+    };
   },
 
   // Get invoice history

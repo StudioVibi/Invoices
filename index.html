@@ -60,6 +60,7 @@
           <h1>VibiInvoices</h1>
         </div>
         <div class="header-right">
+          <button id="install-app-btn" class="btn btn-secondary btn-small">Instalar GitHub App</button>
           <button id="history-btn" class="btn btn-secondary">Histórico</button>
           <button id="settings-btn" class="btn btn-secondary">Configurações</button>
           <div class="user-info">
@@ -196,6 +197,27 @@
         <div class="modal-footer">
           <button id="cancel-invoice" class="btn btn-secondary">Cancelar</button>
           <button id="confirm-invoice" class="btn btn-primary">Confirmar e Enviar</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Install App Modal -->
+    <div id="install-app-modal" class="modal hidden">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h2>Instalar GitHub App</h2>
+          <button class="modal-close">&times;</button>
+        </div>
+        <div class="modal-body">
+          <p class="install-app-text">
+            Para que seus invoices sejam sincronizados automaticamente, instale o GitHub App no seu repositório
+            <strong>Invoices</strong>.
+          </p>
+          <p class="install-app-hint">Depois de instalar, volte e clique em "Já instalei".</p>
+        </div>
+        <div class="modal-footer">
+          <a id="install-app-link" class="btn btn-primary" href="#" target="_blank" rel="noopener">Instalar App</a>
+          <button id="app-installed-btn" class="btn btn-secondary">Já instalei</button>
         </div>
       </div>
     </div>
