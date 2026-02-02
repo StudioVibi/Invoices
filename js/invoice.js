@@ -29,10 +29,12 @@ const Invoice = {
   generateYAML(data) {
     const {
       username,
+      invoiceType = 'standard',
       contractorCompany,
       contractorId,
       bankInfo,
       clientCompany,
+      refundProduct = '',
       issues,
       totalHours,
       hourlyRate,
@@ -40,11 +42,23 @@ const Invoice = {
       paymentMethod
     } = data;
 
+    const isRefund = invoiceType === 'refund';
     const issueDate = new Date();
     const dueDate = new Date();
     dueDate.setDate(dueDate.getDate() + 7);
 
     const totalAmount = totalHours * hourlyRate;
+    const sanitizedRefundProduct = refundProduct.replace(/"/g, '\\"');
+    const safeIssues = Array.isArray(issues) ? issues : [];
+    const issuesBlock = safeIssues.length
+      ? `\n${safeIssues.map(issue => `    - url: "${issue.url}"
+      title: "${issue.title.replace(/"/g, '\\"')}"
+      hours: ${issue.hours || 0}`).join('\n')}`
+      : ' []';
+    const refundBlock = isRefund
+      ? `\nrefund:\n  product: "${sanitizedRefundProduct}"\n`
+      : '';
+    const invoiceTypeLine = isRefund ? `  type: "refund"\n` : '';
 
     // Build YAML manually for proper formatting
     let yaml = `# Invoice
@@ -55,6 +69,7 @@ invoice:
   issue_date: "${this.formatDate(issueDate)}"
   due_date: "${this.formatDate(dueDate)}"
   currency: "${currency}"
+${invoiceTypeLine}
 
 contractor:
   company: "${contractorCompany}"
@@ -63,13 +78,11 @@ ${bankInfo.split('\n').map(line => `    ${line}`).join('\n')}
 
 client:
   company: "${clientCompany}"
+${refundBlock}
 
 service:
-  description: "Completar as issues de GitHub listadas abaixo:"
-  issues:
-${issues.map(issue => `    - url: "${issue.url}"
-      title: "${issue.title.replace(/"/g, '\\"')}"
-      hours: ${issue.hours || 0}`).join('\n')}
+  description: "${isRefund ? 'Refund de produto' : 'Completar as issues de GitHub listadas abaixo:'}"
+  issues:${issuesBlock}
 
   total_hours: ${totalHours}
   hourly_rate: ${hourlyRate}

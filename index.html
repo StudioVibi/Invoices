@@ -90,6 +90,13 @@
             <option value="custom">Personalizado</option>
           </select>
         </div>
+        <div class="filter-group">
+          <label>Tipo:</label>
+          <select id="invoice-type">
+            <option value="standard">Normal</option>
+            <option value="refund">Refund</option>
+          </select>
+        </div>
         <div id="custom-period" class="filter-group hidden">
           <input type="date" id="date-from">
           <span>até</span>
@@ -188,6 +195,12 @@
                 <option value="Studio Vibi INC">Studio Vibi INC</option>
                 <option value="Higher Order Computing Company">Higher Order Computing Company</option>
               </select>
+            </div>
+          </div>
+          <div id="refund-fields" class="form-row hidden">
+            <div class="form-group">
+              <label for="refund-product">Produto do refund</label>
+              <input type="text" id="refund-product" placeholder="Ex: Claude Code, Codex">
             </div>
           </div>
           <div class="preview-yaml">

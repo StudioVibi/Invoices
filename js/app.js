@@ -49,6 +49,7 @@ const App = {
       userName: document.getElementById('user-name'),
       orgFilter: document.getElementById('org-filter'),
       periodFilter: document.getElementById('period-filter'),
+      invoiceType: document.getElementById('invoice-type'),
       customPeriod: document.getElementById('custom-period'),
       dateFrom: document.getElementById('date-from'),
       dateTo: document.getElementById('date-to'),
@@ -75,6 +76,8 @@ const App = {
       previewModal: document.getElementById('preview-modal'),
       yamlPreview: document.getElementById('yaml-preview'),
       clientCompany: document.getElementById('client-company'),
+      refundFields: document.getElementById('refund-fields'),
+      refundProduct: document.getElementById('refund-product'),
       saveSettings: document.getElementById('save-settings'),
       cancelInvoice: document.getElementById('cancel-invoice'),
       confirmInvoice: document.getElementById('confirm-invoice'),
@@ -99,6 +102,7 @@ const App = {
     this.elements.applyFilter.addEventListener('click', () => this.loadIssues());
     this.elements.refreshBtn.addEventListener('click', () => this.loadIssues());
     this.elements.orgFilter.addEventListener('change', () => this.loadIssues());
+    this.elements.invoiceType.addEventListener('change', () => this.onInvoiceTypeChange());
 
     // Generate Invoice
     this.elements.generateBtn.addEventListener('click', () => this.showPreview());
@@ -127,6 +131,7 @@ const App = {
     this.elements.cancelInvoice.addEventListener('click', () => this.hideModal(this.elements.previewModal));
     this.elements.confirmInvoice.addEventListener('click', () => this.submitInvoice());
     this.elements.clientCompany.addEventListener('change', () => this.updatePreview());
+    this.elements.refundProduct.addEventListener('input', () => this.updatePreview());
 
     // Modal close buttons
     document.querySelectorAll('.modal-close').forEach(btn => {
@@ -250,6 +255,25 @@ const App = {
     }
   },
 
+  // Invoice type change
+  onInvoiceTypeChange() {
+    if (this.isRefund()) {
+      this.selectedIssues.clear();
+      this.elements.issuesList.querySelectorAll('.issue-item.selected').forEach(el => {
+        el.classList.remove('selected');
+      });
+    }
+    this.updateTotals();
+    if (!this.elements.previewModal.classList.contains('hidden')) {
+      if (this.isRefund()) {
+        this.elements.refundFields.classList.remove('hidden');
+      } else {
+        this.elements.refundFields.classList.add('hidden');
+      }
+      this.updatePreview();
+    }
+  },
+
   // Load issues
   async loadIssues() {
     this.elements.loading.classList.remove('hidden');
@@ -312,6 +336,10 @@ const App = {
 
   // Toggle issue selection
   toggleIssue(el) {
+    if (this.isRefund()) {
+      this.toast('Refunds não usam issues', 'info');
+      return;
+    }
     const id = parseInt(el.dataset.id);
     const issue = this.issues.find(i => i.id === id);
 
@@ -334,7 +362,8 @@ const App = {
 
   // Update totals in footer
   updateTotals() {
-    const selected = this.issues.filter(i => this.selectedIssues.has(i.id));
+    const isRefund = this.isRefund();
+    const selected = isRefund ? [] : this.issues.filter(i => this.selectedIssues.has(i.id));
     const totalHours = selected.reduce((sum, i) => sum + (i.hours || 0), 0);
     const totalAmount = totalHours * this.settings.hourlyRate;
 
@@ -342,13 +371,18 @@ const App = {
     this.elements.totalHours.textContent = totalHours;
     this.elements.totalAmount.textContent = this.formatCurrency(totalAmount);
 
-    this.elements.generateBtn.disabled = selected.length === 0;
+    this.elements.generateBtn.disabled = !isRefund && selected.length === 0;
   },
 
   // Format currency
   formatCurrency(amount) {
     const symbol = this.settings.currency === 'USD' ? '$' : 'R$';
     return `${symbol}${amount.toFixed(2)}`;
+  },
+
+  // Check if current invoice type is refund
+  isRefund() {
+    return this.elements.invoiceType?.value === 'refund';
   },
 
   // Format issue date with fallbacks
@@ -427,6 +461,12 @@ const App = {
       if (!confirm) return;
     }
 
+    if (this.isRefund()) {
+      this.elements.refundFields.classList.remove('hidden');
+    } else {
+      this.elements.refundFields.classList.add('hidden');
+    }
+
     this.elements.clientCompany.value = this.settings.lastClient;
     this.updatePreview();
     this.elements.previewModal.classList.remove('hidden');
@@ -435,15 +475,18 @@ const App = {
   // Update YAML preview
   async updatePreview() {
     const user = await GitHub.getUser();
-    const selected = this.issues.filter(i => this.selectedIssues.has(i.id));
+    const isRefund = this.isRefund();
+    const selected = isRefund ? [] : this.issues.filter(i => this.selectedIssues.has(i.id));
     const totalHours = selected.reduce((sum, i) => sum + (i.hours || 0), 0);
 
     const yaml = Invoice.generateYAML({
       username: user.login,
+      invoiceType: isRefund ? 'refund' : 'standard',
       contractorCompany: this.settings.contractorCompany,
       contractorId: this.settings.contractorId,
       bankInfo: this.settings.bankInfo,
       clientCompany: this.elements.clientCompany.value,
+      refundProduct: this.elements.refundProduct.value.trim(),
       issues: selected,
       totalHours,
       hourlyRate: this.settings.hourlyRate,
@@ -460,16 +503,23 @@ const App = {
     this.elements.confirmInvoice.textContent = 'Enviando...';
 
     try {
+      const isRefund = this.isRefund();
+      if (isRefund && !this.elements.refundProduct.value.trim()) {
+        this.toast('Informe o produto do refund', 'error');
+        return;
+      }
+
       const user = await GitHub.getUser();
       const yaml = this.elements.yamlPreview.textContent;
       const filename = Invoice.generateFilename(user.login);
+      const invoicePath = isRefund ? `Refunds/${filename}` : filename;
 
       // Save last client choice
       this.settings.lastClient = this.elements.clientCompany.value;
       this.saveSettingsToStorage();
 
       // Upload to GitHub
-      const { url } = await GitHub.uploadInvoice(filename, yaml);
+      const { url } = await GitHub.uploadInvoice(invoicePath, yaml);
 
       this.hideModal(this.elements.previewModal);
       this.toast('Invoice criado com sucesso!', 'success');
@@ -522,7 +572,7 @@ const App = {
         this.elements.historyList.innerHTML = parsed.map(inv => `
           <a href="${inv.url}" target="_blank" class="history-item">
             <div class="history-item-info">
-              <h4>${inv.name}</h4>
+              <h4>${inv.name}${inv.type === 'refund' ? ' (Refund)' : ''}</h4>
               <p>${inv.client} - ${inv.hours}h</p>
             </div>
             <div class="history-item-amount">

@@ -293,7 +293,7 @@ const GitHub = {
   },
 
   // Upload invoice to user's repo
-  async uploadInvoice(filename, content) {
+  async uploadInvoice(path, content) {
     const user = await this.getUser();
     let repo = await this.getInvoicesRepo(user.login);
     let repoCreated = false;
@@ -311,17 +311,17 @@ const GitHub = {
     // Create file via GitHub API
     const encodedContent = btoa(unescape(encodeURIComponent(content)));
 
-    await this.api(`/repos/${user.login}/Invoices/contents/${filename}`, {
+    await this.api(`/repos/${user.login}/Invoices/contents/${path}`, {
       method: 'PUT',
       body: JSON.stringify({
-        message: `Add invoice: ${filename}`,
+        message: `Add invoice: ${path}`,
         content: encodedContent
       })
     });
 
     const defaultBranch = repo?.default_branch || 'main';
     return {
-      url: `https://github.com/${user.login}/Invoices/blob/${defaultBranch}/${filename}`,
+      url: `https://github.com/${user.login}/Invoices/blob/${defaultBranch}/${path}`,
       repoCreated
     };
   },
@@ -331,14 +331,37 @@ const GitHub = {
     const user = await this.getUser();
 
     try {
-      const contents = await this.api(`/repos/${user.login}/Invoices/contents`);
-      const invoices = contents
-        .filter(f => f.name.endsWith('.invoice.yaml'))
-        .map(f => ({
-          name: f.name,
-          url: f.html_url,
-          downloadUrl: f.download_url
-        }));
+      const fetchDir = async (path = '') => {
+        try {
+          const suffix = path ? `/${path}` : '';
+          const list = await this.api(`/repos/${user.login}/Invoices/contents${suffix}`);
+          return Array.isArray(list) ? list : [];
+        } catch (e) {
+          return [];
+        }
+      };
+
+      const rootContents = await fetchDir();
+      const refundContents = await fetchDir('Refunds');
+
+      const invoices = [
+        ...rootContents
+          .filter(f => f.name.endsWith('.invoice.yaml'))
+          .map(f => ({
+            name: f.name,
+            url: f.html_url,
+            downloadUrl: f.download_url,
+            type: 'standard'
+          })),
+        ...refundContents
+          .filter(f => f.name.endsWith('.invoice.yaml'))
+          .map(f => ({
+            name: f.name,
+            url: f.html_url,
+            downloadUrl: f.download_url,
+            type: 'refund'
+          }))
+      ];
 
       // Sort by name (which includes date) descending
       invoices.sort((a, b) => b.name.localeCompare(a.name));
