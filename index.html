@@ -90,19 +90,13 @@
             <option value="custom">Personalizado</option>
           </select>
         </div>
-        <div class="filter-group">
-          <label>Tipo:</label>
-          <select id="invoice-type">
-            <option value="standard">Normal</option>
-            <option value="refund">Refund</option>
-          </select>
-        </div>
         <div id="custom-period" class="filter-group hidden">
           <input type="date" id="date-from">
           <span>até</span>
           <input type="date" id="date-to">
           <button id="apply-filter" class="btn btn-small">Aplicar</button>
         </div>
+        <button id="preview-open-btn" class="btn btn-secondary">Preview Issues</button>
         <button id="refresh-btn" class="btn btn-secondary">Atualizar</button>
       </div>
 
@@ -134,6 +128,7 @@
           </div>
         </div>
         <div class="footer-right">
+          <button id="generate-refund-btn" class="btn btn-secondary btn-large">Gerar Refund</button>
           <button id="generate-btn" class="btn btn-primary btn-large" disabled>Gerar Invoice</button>
         </div>
       </footer>
@@ -202,6 +197,10 @@
               <label for="refund-product">Produto do refund</label>
               <input type="text" id="refund-product" placeholder="Ex: Claude Code, Codex">
             </div>
+            <div class="form-group">
+              <label for="refund-amount">Valor do refund</label>
+              <input type="number" id="refund-amount" placeholder="0.00" step="0.01" min="0">
+            </div>
           </div>
           <div class="preview-yaml">
             <pre id="yaml-preview"></pre>
@@ -250,6 +249,41 @@
           <div id="history-list" class="history-list"></div>
           <div id="no-history" class="no-issues hidden">
             <p>Nenhum invoice encontrado.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Open Issues Preview Modal -->
+    <div id="preview-open-modal" class="modal hidden">
+      <div class="modal-content modal-large">
+        <div class="modal-header">
+          <h2>Prévia de Issues Abertas</h2>
+          <button class="modal-close">&times;</button>
+        </div>
+        <div class="modal-body">
+          <div id="preview-open-loading" class="loading hidden">
+            <div class="spinner"></div>
+            <p>Carregando issues abertas...</p>
+          </div>
+          <div class="preview-summary">
+            <div class="summary-item">
+              <span class="label">Issues com horas</span>
+              <span id="preview-open-count" class="value">0</span>
+            </div>
+            <div class="summary-item">
+              <span class="label">Total de Horas</span>
+              <span id="preview-open-hours" class="value">0</span>
+            </div>
+            <div class="summary-item">
+              <span class="label">Valor Total</span>
+              <span id="preview-open-amount" class="value">$0.00</span>
+            </div>
+          </div>
+          <p id="preview-open-ignored" class="preview-ignored hidden"></p>
+          <div id="preview-open-list" class="issues-list"></div>
+          <div id="preview-open-empty" class="no-issues hidden">
+            <p>Nenhuma issue aberta com horas para o período selecionado.</p>
           </div>
         </div>
       </div>

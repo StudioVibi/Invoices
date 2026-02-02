@@ -5,6 +5,7 @@ const APP_INSTALL_STORAGE_KEY = 'github_app_installed';
 const App = {
   issues: [],
   selectedIssues: new Set(),
+  refundMode: false,
   settings: {
     contractorCompany: '',
     contractorId: '',
@@ -49,11 +50,11 @@ const App = {
       userName: document.getElementById('user-name'),
       orgFilter: document.getElementById('org-filter'),
       periodFilter: document.getElementById('period-filter'),
-      invoiceType: document.getElementById('invoice-type'),
       customPeriod: document.getElementById('custom-period'),
       dateFrom: document.getElementById('date-from'),
       dateTo: document.getElementById('date-to'),
       applyFilter: document.getElementById('apply-filter'),
+      previewOpenBtn: document.getElementById('preview-open-btn'),
       refreshBtn: document.getElementById('refresh-btn'),
       loading: document.getElementById('loading'),
       issuesList: document.getElementById('issues-list'),
@@ -62,6 +63,7 @@ const App = {
       totalHours: document.getElementById('total-hours'),
       totalAmount: document.getElementById('total-amount'),
       generateBtn: document.getElementById('generate-btn'),
+      generateRefundBtn: document.getElementById('generate-refund-btn'),
       settingsBtn: document.getElementById('settings-btn'),
       settingsModal: document.getElementById('settings-modal'),
       historyBtn: document.getElementById('history-btn'),
@@ -69,6 +71,14 @@ const App = {
       historyList: document.getElementById('history-list'),
       historyLoading: document.getElementById('history-loading'),
       noHistory: document.getElementById('no-history'),
+      previewOpenModal: document.getElementById('preview-open-modal'),
+      previewOpenLoading: document.getElementById('preview-open-loading'),
+      previewOpenList: document.getElementById('preview-open-list'),
+      previewOpenEmpty: document.getElementById('preview-open-empty'),
+      previewOpenCount: document.getElementById('preview-open-count'),
+      previewOpenHours: document.getElementById('preview-open-hours'),
+      previewOpenAmount: document.getElementById('preview-open-amount'),
+      previewOpenIgnored: document.getElementById('preview-open-ignored'),
       installAppBtn: document.getElementById('install-app-btn'),
       installAppModal: document.getElementById('install-app-modal'),
       installAppLink: document.getElementById('install-app-link'),
@@ -78,6 +88,7 @@ const App = {
       clientCompany: document.getElementById('client-company'),
       refundFields: document.getElementById('refund-fields'),
       refundProduct: document.getElementById('refund-product'),
+      refundAmount: document.getElementById('refund-amount'),
       saveSettings: document.getElementById('save-settings'),
       cancelInvoice: document.getElementById('cancel-invoice'),
       confirmInvoice: document.getElementById('confirm-invoice'),
@@ -102,10 +113,11 @@ const App = {
     this.elements.applyFilter.addEventListener('click', () => this.loadIssues());
     this.elements.refreshBtn.addEventListener('click', () => this.loadIssues());
     this.elements.orgFilter.addEventListener('change', () => this.loadIssues());
-    this.elements.invoiceType.addEventListener('change', () => this.onInvoiceTypeChange());
+    this.elements.previewOpenBtn.addEventListener('click', () => this.showOpenPreview());
 
     // Generate Invoice
     this.elements.generateBtn.addEventListener('click', () => this.showPreview());
+    this.elements.generateRefundBtn.addEventListener('click', () => this.showRefundPreview());
 
     // Settings
     this.elements.settingsBtn.addEventListener('click', () => this.showSettings());
@@ -132,6 +144,7 @@ const App = {
     this.elements.confirmInvoice.addEventListener('click', () => this.submitInvoice());
     this.elements.clientCompany.addEventListener('change', () => this.updatePreview());
     this.elements.refundProduct.addEventListener('input', () => this.updatePreview());
+    this.elements.refundAmount.addEventListener('input', () => this.updatePreview());
 
     // Modal close buttons
     document.querySelectorAll('.modal-close').forEach(btn => {
@@ -255,23 +268,27 @@ const App = {
     }
   },
 
-  // Invoice type change
-  onInvoiceTypeChange() {
-    if (this.isRefund()) {
-      this.selectedIssues.clear();
-      this.elements.issuesList.querySelectorAll('.issue-item.selected').forEach(el => {
-        el.classList.remove('selected');
-      });
+  // Get selected period in days, with validation
+  getSelectedPeriodDays() {
+    const value = this.elements.periodFilter.value;
+    if (value !== 'custom') {
+      return parseInt(value, 10);
     }
-    this.updateTotals();
-    if (!this.elements.previewModal.classList.contains('hidden')) {
-      if (this.isRefund()) {
-        this.elements.refundFields.classList.remove('hidden');
-      } else {
-        this.elements.refundFields.classList.add('hidden');
-      }
-      this.updatePreview();
+
+    const fromValue = this.elements.dateFrom.value;
+    const toValue = this.elements.dateTo.value;
+    if (!fromValue || !toValue) {
+      return null;
     }
+
+    const from = new Date(fromValue);
+    const to = new Date(toValue);
+    const diff = Math.ceil((to - from) / (1000 * 60 * 60 * 24));
+    if (Number.isNaN(diff) || diff < 0) {
+      return null;
+    }
+
+    return diff;
   },
 
   // Load issues
@@ -336,10 +353,6 @@ const App = {
 
   // Toggle issue selection
   toggleIssue(el) {
-    if (this.isRefund()) {
-      this.toast('Refunds não usam issues', 'info');
-      return;
-    }
     const id = parseInt(el.dataset.id);
     const issue = this.issues.find(i => i.id === id);
 
@@ -362,8 +375,7 @@ const App = {
 
   // Update totals in footer
   updateTotals() {
-    const isRefund = this.isRefund();
-    const selected = isRefund ? [] : this.issues.filter(i => this.selectedIssues.has(i.id));
+    const selected = this.issues.filter(i => this.selectedIssues.has(i.id));
     const totalHours = selected.reduce((sum, i) => sum + (i.hours || 0), 0);
     const totalAmount = totalHours * this.settings.hourlyRate;
 
@@ -371,18 +383,13 @@ const App = {
     this.elements.totalHours.textContent = totalHours;
     this.elements.totalAmount.textContent = this.formatCurrency(totalAmount);
 
-    this.elements.generateBtn.disabled = !isRefund && selected.length === 0;
+    this.elements.generateBtn.disabled = selected.length === 0;
   },
 
   // Format currency
   formatCurrency(amount) {
     const symbol = this.settings.currency === 'USD' ? '$' : 'R$';
     return `${symbol}${amount.toFixed(2)}`;
-  },
-
-  // Check if current invoice type is refund
-  isRefund() {
-    return this.elements.invoiceType?.value === 'refund';
   },
 
   // Format issue date with fallbacks
@@ -431,6 +438,7 @@ const App = {
 
   // Show preview modal
   showPreview() {
+    this.refundMode = false;
     // Validate settings
     if (!this.settings.contractorCompany) {
       this.toast('Configure o nome da sua empresa primeiro', 'error');
@@ -461,12 +469,30 @@ const App = {
       if (!confirm) return;
     }
 
-    if (this.isRefund()) {
-      this.elements.refundFields.classList.remove('hidden');
-    } else {
-      this.elements.refundFields.classList.add('hidden');
+    this.elements.refundFields.classList.add('hidden');
+
+    this.elements.clientCompany.value = this.settings.lastClient;
+    this.updatePreview();
+    this.elements.previewModal.classList.remove('hidden');
+  },
+
+  // Show refund preview modal
+  showRefundPreview() {
+    this.refundMode = true;
+    // Validate settings (refund does not require hourly rate)
+    if (!this.settings.contractorCompany) {
+      this.toast('Configure o nome da sua empresa primeiro', 'error');
+      this.showSettings();
+      return;
     }
 
+    if (!this.settings.bankInfo) {
+      this.toast('Configure as informações bancárias primeiro', 'error');
+      this.showSettings();
+      return;
+    }
+
+    this.elements.refundFields.classList.remove('hidden');
     this.elements.clientCompany.value = this.settings.lastClient;
     this.updatePreview();
     this.elements.previewModal.classList.remove('hidden');
@@ -475,9 +501,10 @@ const App = {
   // Update YAML preview
   async updatePreview() {
     const user = await GitHub.getUser();
-    const isRefund = this.isRefund();
+    const isRefund = this.refundMode;
     const selected = isRefund ? [] : this.issues.filter(i => this.selectedIssues.has(i.id));
     const totalHours = selected.reduce((sum, i) => sum + (i.hours || 0), 0);
+    const refundAmount = isRefund ? parseFloat(this.elements.refundAmount.value) || 0 : 0;
 
     const yaml = Invoice.generateYAML({
       username: user.login,
@@ -487,6 +514,7 @@ const App = {
       bankInfo: this.settings.bankInfo,
       clientCompany: this.elements.clientCompany.value,
       refundProduct: this.elements.refundProduct.value.trim(),
+      refundAmount,
       issues: selected,
       totalHours,
       hourlyRate: this.settings.hourlyRate,
@@ -503,10 +531,18 @@ const App = {
     this.elements.confirmInvoice.textContent = 'Enviando...';
 
     try {
-      const isRefund = this.isRefund();
-      if (isRefund && !this.elements.refundProduct.value.trim()) {
-        this.toast('Informe o produto do refund', 'error');
-        return;
+      const isRefund = this.refundMode;
+      if (isRefund) {
+        const product = this.elements.refundProduct.value.trim();
+        const amount = parseFloat(this.elements.refundAmount.value);
+        if (!product) {
+          this.toast('Informe o produto do refund', 'error');
+          return;
+        }
+        if (Number.isNaN(amount) || amount < 0) {
+          this.toast('Informe um valor válido para o refund', 'error');
+          return;
+        }
       }
 
       const user = await GitHub.getUser();
@@ -535,6 +571,8 @@ const App = {
       window.open(url, '_blank');
       this.maybePromptInstallApp();
 
+      this.refundMode = false;
+      this.elements.refundFields.classList.add('hidden');
     } catch (e) {
       console.error('Error submitting invoice:', e);
       this.toast('Erro ao enviar invoice: ' + e.message, 'error');
@@ -587,6 +625,66 @@ const App = {
       this.toast('Erro ao carregar histórico: ' + e.message, 'error');
     } finally {
       this.elements.historyLoading.classList.add('hidden');
+    }
+  },
+
+  // Show open issues preview modal
+  async showOpenPreview() {
+    this.elements.previewOpenModal.classList.remove('hidden');
+    this.elements.previewOpenLoading.classList.remove('hidden');
+    this.elements.previewOpenList.innerHTML = '';
+    this.elements.previewOpenEmpty.classList.add('hidden');
+    this.elements.previewOpenIgnored.classList.add('hidden');
+
+    const days = this.getSelectedPeriodDays();
+    if (days === null) {
+      this.elements.previewOpenLoading.classList.add('hidden');
+      this.toast('Selecione um período válido para o preview', 'error');
+      return;
+    }
+
+    try {
+      const org = this.elements.orgFilter.value;
+      const issues = await GitHub.getOpenIssues(org, days);
+      const withHours = issues.filter(issue => Number.isFinite(issue.hours));
+      const ignored = issues.length - withHours.length;
+
+      const totalHours = withHours.reduce((sum, issue) => sum + (issue.hours || 0), 0);
+      const totalAmount = totalHours * this.settings.hourlyRate;
+
+      this.elements.previewOpenCount.textContent = withHours.length;
+      this.elements.previewOpenHours.textContent = totalHours;
+      this.elements.previewOpenAmount.textContent = this.formatCurrency(totalAmount);
+
+      if (ignored > 0) {
+        this.elements.previewOpenIgnored.textContent = `${ignored} issue(s) sem horas foram ignoradas.`;
+        this.elements.previewOpenIgnored.classList.remove('hidden');
+      }
+
+      if (withHours.length === 0) {
+        this.elements.previewOpenEmpty.classList.remove('hidden');
+      } else {
+        this.elements.previewOpenList.innerHTML = withHours.map(issue => `
+          <div class="issue-item preview">
+            <div class="issue-content">
+              <div class="issue-title">#${issue.number} - ${this.escapeHtml(issue.title)}</div>
+              <div class="issue-meta">
+                <span class="issue-org">${issue.org}</span>
+                <span class="issue-repo">${issue.repo}</span>
+                <span class="issue-date">${this.formatIssueDate(issue)}</span>
+              </div>
+            </div>
+            <div class="issue-hours">
+              ${issue.hours}h
+            </div>
+          </div>
+        `).join('');
+      }
+    } catch (e) {
+      console.error('Error loading open issues preview:', e);
+      this.toast('Erro ao carregar preview: ' + e.message, 'error');
+    } finally {
+      this.elements.previewOpenLoading.classList.add('hidden');
     }
   },
 

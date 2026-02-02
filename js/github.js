@@ -154,6 +154,66 @@ const GitHub = {
     return allIssues;
   },
 
+  // Get open issues assigned to user from both orgs
+  async getOpenIssues(org = 'all', daysBack = 30) {
+    const user = await this.getUser();
+    const since = new Date();
+    since.setDate(since.getDate() - daysBack);
+
+    const orgs = org === 'all' ? this.ORGS : [org];
+    const allIssues = [];
+
+    for (const orgName of orgs) {
+      try {
+        // Get all repos from org
+        const repos = await this.api(`/orgs/${orgName}/repos?per_page=100`);
+
+        for (const repo of repos) {
+          try {
+            // Get open issues assigned to user
+            const issues = await this.api(
+              `/repos/${orgName}/${repo.name}/issues?` +
+              `assignee=${user.login}&state=open&since=${since.toISOString()}&per_page=100`
+            );
+
+            for (const issue of issues) {
+              if (!issue.pull_request) { // Exclude PRs
+                allIssues.push({
+                  id: issue.id,
+                  number: issue.number,
+                  title: issue.title,
+                  url: issue.html_url,
+                  repo: repo.name,
+                  org: orgName,
+                  closedAt: issue.closed_at,
+                  updatedAt: issue.updated_at,
+                  createdAt: issue.created_at,
+                  hours: null // Will be filled from Project
+                });
+              }
+            }
+          } catch (e) {
+            console.warn(`Error fetching issues from ${orgName}/${repo.name}:`, e);
+          }
+        }
+      } catch (e) {
+        console.warn(`Error fetching repos from ${orgName}:`, e);
+      }
+    }
+
+    // Now get hours from Projects
+    await this.enrichWithProjectHours(allIssues, orgs);
+
+    // Sort by date, newest first (fallback to updated/created when closedAt is missing)
+    allIssues.sort((a, b) => {
+      const dateA = new Date(a.closedAt || a.updatedAt || a.createdAt || 0);
+      const dateB = new Date(b.closedAt || b.updatedAt || b.createdAt || 0);
+      return dateB - dateA;
+    });
+
+    return allIssues;
+  },
+
   // Get hours from GitHub Project custom fields
   async enrichWithProjectHours(issues, orgs) {
     for (const orgName of orgs) {

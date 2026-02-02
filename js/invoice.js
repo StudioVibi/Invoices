@@ -35,6 +35,7 @@ const Invoice = {
       bankInfo,
       clientCompany,
       refundProduct = '',
+      refundAmount = 0,
       issues,
       totalHours,
       hourlyRate,
@@ -47,7 +48,7 @@ const Invoice = {
     const dueDate = new Date();
     dueDate.setDate(dueDate.getDate() + 7);
 
-    const totalAmount = totalHours * hourlyRate;
+    const totalAmount = isRefund ? refundAmount : totalHours * hourlyRate;
     const sanitizedRefundProduct = refundProduct.replace(/"/g, '\\"');
     const safeIssues = Array.isArray(issues) ? issues : [];
     const issuesBlock = safeIssues.length
@@ -56,7 +57,7 @@ const Invoice = {
       hours: ${issue.hours || 0}`).join('\n')}`
       : ' []';
     const refundBlock = isRefund
-      ? `\nrefund:\n  product: "${sanitizedRefundProduct}"\n`
+      ? `\nrefund:\n  product: "${sanitizedRefundProduct}"\n  total_amount: ${Number(totalAmount).toFixed(2)}\n`
       : '';
     const invoiceTypeLine = isRefund ? `  type: "refund"\n` : '';
 
@@ -80,13 +81,14 @@ client:
   company: "${clientCompany}"
 ${refundBlock}
 
-service:
-  description: "${isRefund ? 'Refund de produto' : 'Completar as issues de GitHub listadas abaixo:'}"
+${isRefund ? '' : `service:
+  description: "Completar as issues de GitHub listadas abaixo:"
   issues:${issuesBlock}
 
   total_hours: ${totalHours}
   hourly_rate: ${hourlyRate}
   total_amount: ${totalAmount.toFixed(2)}
+`}
 
 payment:
   method: "${paymentMethod}"
